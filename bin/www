@@ -13,6 +13,7 @@ var debug = require('debug')('cams:server');
 
 var port = normalizePort(process.env.PORT || '3000');
 
+console.log(port);
 /**
  * Listen on provided port, on all network interfaces.
  */
