@@ -9,98 +9,114 @@ const exec = require('child_process').exec;
 const router = require('express').Router();
 const IMAGE_CACHE_SIZE = 128;
 const DEFAULT_PAGE_SIZE = 16;
+const filenameMatcher = new RegExp(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(snapshot|best)\.jpg$/);
+let wss;
 
-const cameras = [
-    { name: 'livingroom', directory: '/home/node/security/', recentImages: [], displayName: "Living Room Camera"},
-    { name: 'kitchen', directory: '/home/node/security2/', recentImages: [], displayName: "Kitchen Camera"},
-    { name: 'bedroom', directory: '/home/node/security3/', recentImages: [], displayName: "Bedroom Camera"}
-];
+module.exports = (ws) => {
+    wss = ws;
 
-module.exports = function(ws){
+    wss.on('connection', (ws, req) => {
+        const url = req.url;
+        console.info(`Client connected to websocket: ${url}`);
 
-    updateImageCaches(ws);
-    setInterval(function(){
-        updateImageCaches(ws);
-    }, 30000);
-
-    router.get('/images/:camera/:tagId', function(req,res) {
-        let cameraName = req.params["camera"];
-        console.info(`Cat camera ${cameraName} image request.`);
-        let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
-        res.sendFile(camera.directory + req.params["tagId"]);
+        ws.on('error', err => err.code !== "ECONNRESET" ? console.error(err) : console.info(`Client disconnected from websocket: ${url}`));
     });
 
-    router.get('/:camera?/:numberImgs?', function(req,res) {
-        let cameraName = req.params["camera"];
-        let number = req.params["numberImgs"];
-        number = number && number.match(/^\d+$/) ? Number(number) : DEFAULT_PAGE_SIZE;
-        number = Math.min(number, IMAGE_CACHE_SIZE);
-        number = Math.max(1, number);
-        console.info(`Cat camera ${cameraName} page request.`);
-        let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
-        res.render('gallery.pug', {
-            title: camera.displayName,
-            images : camera.recentImages.slice(0,number).map(image => {
-                const newImage = Object.assign({}, image);
-                newImage.url = req.baseUrl + newImage.url;
-                return newImage;
-            })
-        });
-    });
 
-    router.post('/snapshot/livingroom/',function(req,res){
-        console.info('Snapshot livingroom camera');
-        const camera = cameras.find(camera => camera.name === livingroom);
-        if(!camera) throw "No livingroom camera found";
-        exec('snapshot-cam-1.sh',
-            function (error, stdout, stderr) {
-                if (error !== null) {
-                    console.error(error);
-                } else {
-                    console.info('stdout: ' + stdout);
-                    console.info('stderr: ' + stderr);
-                    setTimeout(function(){
-                        updateImageCache(camera, ws);
-                    }, 3000);
-                }
-            }
-        );
-    });
+    updateImageCaches(true);
+    setInterval(() => updateImageCaches(), 5000);
 
-    router.ws('/socket', (ws, req) => console.info("Cat socket opened."));
     return router;
 };
 
-function updateImageCaches(ws){
-    cameras.forEach(camera => updateImageCache(camera, ws));
+const cameras = [
+    { name: 'livingroom', directory: '/home/node/security/', recentImages: [], displayName: "Living Room"},
+    { name: 'kitchen', directory: '/home/node/security2/', recentImages: [], displayName: "Kitchen"},
+    { name: 'bedroom', directory: '/home/node/security3/', recentImages: [], displayName: "Bedroom"}
+];
+
+router.get('/images/:camera/:tagId', function(req,res) {
+    let cameraName = req.params["camera"];
+    let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
+    res.sendFile(camera.directory + req.params["tagId"]);
+});
+
+router.get('/:camera?/:numberImgs?', function(req,res) {
+    let cameraName = req.params["camera"];
+    let number = req.params["numberImgs"];
+    number = number && number.match(/^\d+$/) ? Number(number) : DEFAULT_PAGE_SIZE;
+    number = Math.min(number, IMAGE_CACHE_SIZE);
+    number = Math.max(1, number);
+    let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
+    res.render('gallery.pug', {
+        title: camera.displayName,
+        images : camera.recentImages.slice(0,number).map(image => {
+            const newImage = Object.assign({}, image);
+            newImage.url = req.baseUrl + newImage.url;
+            return newImage;
+        }),
+        baseUrl: `/cams/images/${camera.name}/`
+    });
+});
+
+router.post('/snapshot/livingroom/',function(req,res){
+    console.info('Snapshot livingroom camera');
+    const camera = cameras.find(camera => camera.name === "livingroom");
+    if(!camera) throw "No livingroom camera found";
+    exec('snapshot-cam-1.sh',
+        function (error, stdout, stderr) {
+            if (error !== null) {
+                console.error(error);
+            } else {
+                console.info('stdout: ' + stdout);
+                console.info('stderr: ' + stderr);
+                setTimeout(function(){
+                    updateImageCache(camera);
+                }, 3000);
+            }
+        }
+    );
+});
+
+function updateImageCaches(noBroadcast){
+    cameras.forEach(camera => updateImageCache(camera, noBroadcast));
 }
 
-function updateImageCache(camera, ws){
-    let imageCache = camera.recentImages;
+function updateImageCache(camera, noBroadcast){
     let dir = camera.directory;
-    let requestStr = `/images/${camera.name}/`;
 
-    let newImageCache = fs.readdirSync(dir)
-        .filter(file => file !== 'lastsnap.jpg' && file.charAt(0) !== '.')
-        .filter(file => !(fs.statSync(dir + '/' + file).isDirectory() || getExtension(file) !== 'jpg' || file === 'lastsnap.jpg'))
+    let latestFiles = fs.readdirSync(dir)
+        .filter(file => file !== 'lastsnap.jpg' && file.charAt(0) !== '.' && !fs.statSync(dir + '/' + file).isDirectory())
+        .filter(file => filenameMatcher.test(file))
         .sort((a, b) => fs.statSync(dir + b).mtime.getTime() - fs.statSync(dir + a).mtime.getTime())
-        .map(file => { return {url: requestStr + file, time: getImageTime(file), date: getImageDate(file), type: getImageType(file)}; })
         .slice(0,IMAGE_CACHE_SIZE);
 
-    //check for changes
-    if(newImageCache.map(image => image.url).join() === imageCache.map(image => image.url).join()) return;
-
-    console.info("New images found, image cache updated.");
-    camera.recentImages = newImageCache;
-    broadcastRefresh(ws);
+    for(let i = 0; i < latestFiles.length; i++)
+    {
+        if(!addAddFileIfNotInCache(latestFiles[i], camera, noBroadcast)) return;
+    }
 }
 
-function broadcastRefresh(ws){
-    console.info("Sending refresh");
-    ws.getWss('/socket').clients.forEach(function (client) {
-        console.info("Refreshing "+client.toString());
-        client.send('refresh', () => log.error);
-    });
+function addAddFileIfNotInCache(file, camera, noBroadcast)
+{
+    const cache = camera.recentImages;
+
+    if (!cache.find(recentFile => recentFile.file === file))
+    {
+        if(!noBroadcast) console.info(`found new file ${file} for camera ${camera.name}`);
+        const fileData = {file, time: getImageTime(file), date: getImageDate(file), type: getImageType(file)};
+        cache.unshift(fileData);
+        if(cache.length > IMAGE_CACHE_SIZE) cache.pop();
+        if(!noBroadcast) {
+            wss.clients.forEach(client => {
+                if (client.readyState === 1) {
+                    client.send(JSON.stringify({camera: camera.name, fileData}));
+                }
+            });
+        }
+        return true;
+    }
+    return false;
 }
 
 function getImageTime(str){

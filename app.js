@@ -4,11 +4,15 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var config = require('./config');
+var http = require('http');
+var WebSocket = require('ws');
+var app = express();
+var server = http.createServer(app);
+var wss = new WebSocket.Server({server});
 
 var index = require('./routes/index');
-var cams = require('./routes/cams');
-
-var app = express();
+var cams = require('./routes/cams')(wss);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -43,4 +47,4 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-module.exports = app;
+module.exports = server;

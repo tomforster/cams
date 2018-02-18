@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "node ./bin/www --debug-brk=5858"
   },
   "dependencies": {
     "body-parser": "~1.18.2",
@@ -13,6 +13,20 @@
     "morgan": "~1.9.0",
     "node-sass-middleware": "0.9.8",
     "pug": "2.0.0-beta11",
-    "serve-favicon": "~2.4.5"
-  }
+    "serve-favicon": "~2.4.5",
+    "ws": "^4.0.0"
+  },
+  "main": "app.js",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomforster/cams.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tomforster/cams/issues"
+  },
+  "homepage": "https://github.com/tomforster/cams#readme",
+  "description": ""
 }
