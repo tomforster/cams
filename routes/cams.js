@@ -88,7 +88,7 @@ function updateImageCache(camera, noBroadcast){
     let latestFiles = fs.readdirSync(dir)
         .filter(file => file !== 'lastsnap.jpg' && file.charAt(0) !== '.' && !fs.statSync(dir + '/' + file).isDirectory())
         .filter(file => filenameMatcher.test(file))
-        .sort((a, b) => fs.statSync(dir + b).mtime.getTime() - fs.statSync(dir + a).mtime.getTime())
+        .sort((a, b) => fs.statSync(dir + a).mtime.getTime() - fs.statSync(dir + b).mtime.getTime())
         .slice(0,IMAGE_CACHE_SIZE);
 
     for(let i = 0; i < latestFiles.length; i++)
