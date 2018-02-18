@@ -1,16 +1,17 @@
 .snapshot .overlay {
   position: absolute;
-  top: 9px;
-  left: 9px;
-  border: 15px solid rgba(37, 111, 107, 0.89);
-  border-radius: 12px;
+  top: 4px;
+  left: 4px;
+  border: 7px solid rgba(37, 111, 107, 0.89);
+  border-radius: 4px;
+  z-index: 2;
 }
 
 .snapshot .overlay::before{
   content: 'S';
   color: white;
-  top: -15px;
+  top: -11px;
   position: absolute;
-  left: -7px;
-  font-size: 16pt;
+  left: -4px;
+  font-size: 10pt;
 }
