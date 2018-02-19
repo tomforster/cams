@@ -88,12 +88,13 @@ function updateImageCache(camera, noBroadcast){
     let latestFiles = fs.readdirSync(dir)
         .filter(file => file !== 'lastsnap.jpg' && file.charAt(0) !== '.' && !fs.statSync(dir + '/' + file).isDirectory())
         .filter(file => filenameMatcher.test(file))
-        .sort((a, b) => fs.statSync(dir + a).mtime.getTime() - fs.statSync(dir + b).mtime.getTime())
-        .slice(0,IMAGE_CACHE_SIZE);
+        .sort((a, b) => getTimestampForFilename(b) - getTimestampForFilename(a))
+        .slice(0,IMAGE_CACHE_SIZE)
+        .sort((a, b) => getTimestampForFilename(a) - getTimestampForFilename(b));
 
     for(let i = 0; i < latestFiles.length; i++)
     {
-        if(!addAddFileIfNotInCache(latestFiles[i], camera, noBroadcast)) return;
+        addAddFileIfNotInCache(latestFiles[i], camera, noBroadcast);
     }
 }
 
@@ -133,6 +134,13 @@ function getImageDate(str){
     return splitstr.join('/');
 }
 
+function getTimestampForFilename(str)
+{
+    const dateTime = str.split("_").slice(0,2);
+    dateTime[1] = dateTime[1].replace(/-/g, ':'); dateTime.join("T");
+    return new Date(`${dateTime[0]}T${dateTime[1].replace(/-/g, ":")}`).getTime();
+}
+
 function getImageType(str){
     let matches = str.match(/best/);
     if(matches){
@@ -143,8 +151,4 @@ function getImageType(str){
         return "snapshot"
     }
     return ""
-}
-
-function getExtension(filename) {
-    return filename.split('.').pop();
 }
