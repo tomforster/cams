@@ -1,32 +1,14 @@
-<!DOCTYPE html>
-html
-    head
-        meta(name="viewport" content="width=device-width, initial-scale=1")
-        link(href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css", rel="stylesheet", integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm", crossorigin="anonymous")
-        link(rel="stylesheet" href="/css/gallery.css")
-        script(src="/js/gallery.js")
-        title= title
-    body
-        .container-fluid
-            .row
-                .col
-                    h4.mt-2.mb-2.text-nowrap= title
-                .col-auto
-                    .btn-toolbar.mt-2.mb-2
-                        .btn-group-sm
-                            a.btn.btn-light(href="/cams/livingroom") Living Room
-                            a.btn.btn-light(href="/cams/kitchen") Kitchen
-                            a.btn.btn-light(href="/cams/bedroom") Bedroom
-                            button#button-snapshot.btn.btn-secondary Snapshot
+extends layout
 
-            #images.row
-                each image in images
-                    .col-lg-3.col-md-4.col-sm-6.col-xs-12.mb-3(class=image.type)
-                        a.card(href=baseUrl + image.file)
-                            .overlay
-                            .row
-                                .col
-                                    img.img-fluid(src=baseUrl + image.file)
-                            .row
-                                .col.ml-1.small= image.date
-                                .col.mr-1.small.text-right= image.time
+block content
+    #images.row
+        each image in images
+            .col-xl-2.col-lg-3.col-md-4.col-sm-6.mb-3(class=image.type)
+                a.card(href=image.path)
+                    .overlay
+                    img.img-fluid(src=image.path)
+                    .date-time
+                        .small= image.date
+                        .small.text-right= image.time
+
+    script(src="/js/gallery.js")

@@ -35,27 +35,27 @@ const cameras = [
     { name: 'bedroom', directory: '/home/node/security3/', recentImages: [], displayName: "Bedroom"}
 ];
 
+const feed = {name: 'feed', recentImages: [], displayName: "Feed"};
+
 router.get('/images/:camera/:tagId', function(req,res) {
     let cameraName = req.params["camera"];
-    let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
+    let camera = cameras.find(camera => camera.name === cameraName) || feed;
     res.sendFile(camera.directory + req.params["tagId"]);
 });
 
-router.get('/:camera?/:numberImgs?', function(req,res) {
+router.get('/:camera?', function(req,res) {
     let cameraName = req.params["camera"];
-    let number = req.params["numberImgs"];
+    let number = req.query.num;
+    let hideSnapshots = req.query.hasOwnProperty("noss");
+    console.log(hideSnapshots);
     number = number && number.match(/^\d+$/) ? Number(number) : DEFAULT_PAGE_SIZE;
     number = Math.min(number, IMAGE_CACHE_SIZE);
     number = Math.max(1, number);
-    let camera = cameras.find(camera => camera.name === cameraName) || cameras[0];
+    let camera = cameras.find(camera => camera.name === cameraName);
+
     res.render('gallery.pug', {
-        title: camera.displayName,
-        images : camera.recentImages.slice(0,number).map(image => {
-            const newImage = Object.assign({}, image);
-            newImage.url = req.baseUrl + newImage.url;
-            return newImage;
-        }),
-        baseUrl: `/cams/images/${camera.name}/`
+        title: camera && camera.displayName || feed.displayName,
+        images: (camera && camera.recentImages || feed.recentImages).filter(image => !(hideSnapshots && image.type === 'snapshot')).slice(0, number)
     });
 });
 
@@ -85,39 +85,61 @@ function updateImageCaches(noBroadcast){
 function updateImageCache(camera, noBroadcast){
     let dir = camera.directory;
 
-    let latestFiles = fs.readdirSync(dir)
-        .filter(file => file !== 'lastsnap.jpg' && file.charAt(0) !== '.' && !fs.statSync(dir + '/' + file).isDirectory())
-        .filter(file => filenameMatcher.test(file))
-        .sort((a, b) => getTimestampForFilename(b) - getTimestampForFilename(a))
+    fs.readdirSync(dir)
+        .filter(filename => filename !== 'lastsnap.jpg' && filename.charAt(0) !== '.' && !fs.statSync(dir + '/' + filename).isDirectory())
+        .filter(filename => filenameMatcher.test(filename))
+        .map(filename => {
+            return {
+                filename,
+                path: `/cams/images/${camera.name}/${filename}`,
+                time: getImageTime(filename),
+                date: getImageDate(filename),
+                type: getImageType(filename),
+                timestamp: getTimestampForFilename(filename)
+            }
+        })
+        .sort(timeStampSortFunction)
         .slice(0,IMAGE_CACHE_SIZE)
-        .sort((a, b) => getTimestampForFilename(a) - getTimestampForFilename(b));
-
-    for(let i = 0; i < latestFiles.length; i++)
-    {
-        addAddFileIfNotInCache(latestFiles[i], camera, noBroadcast);
-    }
+        .reverse()
+        .forEach(file => {
+            addAddFileIfNotInCache(file, camera, noBroadcast);
+            addAddFileIfNotInCache(file, feed, noBroadcast);
+        });
 }
 
 function addAddFileIfNotInCache(file, camera, noBroadcast)
 {
-    const cache = camera.recentImages;
-
-    if (!cache.find(recentFile => recentFile.file === file))
+    if (!camera.recentImages.find(recentFile => recentFile.path === file.path))
     {
-        if(!noBroadcast) console.info(`found new file ${file} for camera ${camera.name}`);
-        const fileData = {file, time: getImageTime(file), date: getImageDate(file), type: getImageType(file)};
-        cache.unshift(fileData);
-        if(cache.length > IMAGE_CACHE_SIZE) cache.pop();
-        if(!noBroadcast) {
-            wss.clients.forEach(client => {
-                if (client.readyState === 1) {
-                    client.send(JSON.stringify({camera: camera.name, fileData}));
+        if(camera.recentImages.length === IMAGE_CACHE_SIZE)
+        {
+            const oldestImage = camera.recentImages[IMAGE_CACHE_SIZE - 1];
+            if(file.timestamp > oldestImage.timestamp)
+            {
+                camera.recentImages.pop();
+                camera.recentImages.push(file);
+                if(!noBroadcast)
+                {
+                    console.info(`found new file ${file.filename} for camera ${camera.name}`);
+                    broadcast(camera, file);
                 }
-            });
+            }
         }
-        return true;
+        else
+        {
+            camera.recentImages.push(file);
+        }
+        camera.recentImages = camera.recentImages.sort(timeStampSortFunction);
     }
-    return false;
+}
+
+function broadcast(camera, file)
+{
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+            client.send(JSON.stringify({camera: camera.name, file}));
+        }
+    });
 }
 
 function getImageTime(str){
@@ -152,3 +174,5 @@ function getImageType(str){
     }
     return ""
 }
+
+const timeStampSortFunction = (a, b) => b.timestamp - a.timestamp;

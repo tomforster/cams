@@ -1,8 +1,8 @@
 .snapshot .overlay {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  border: 7px solid rgba(37, 111, 107, 0.89);
+  top: 5px;
+  left: 5px;
+  border: 9px solid rgba(37, 111, 107, 0.89);
   border-radius: 4px;
   z-index: 2;
 }
@@ -13,5 +13,12 @@
   top: -11px;
   position: absolute;
   left: -4px;
-  font-size: 10pt;
+  font-size: 11pt;
+}
+
+.date-time
+{
+  display: flex;
+  justify-content: space-between;
+  padding:0 5px;
 }
