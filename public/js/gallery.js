@@ -17,14 +17,14 @@ document.addEventListener("DOMContentLoaded", () => {
             div.className = `col-lg-3 col-md-4 col-sm-6 col-xs-12 mb-3 ${data.file.type}`;
             const link = document.createElement("a");
             link.className = "card";
-            link.href = `${path}${data.file.path}`;
+            link.href = `${data.file.path}`;
             div.appendChild(link);
             const overlay = document.createElement("div");
             overlay.className = "overlay";
             link.appendChild(overlay);
             const image = document.createElement("img");
             image.className = "img-fluid";
-            image.src = `${path}${data.file.path}`;
+            image.src = `${data.file.path}`;
             link.appendChild(image);
             const info = document.createElement("div");
             const infoCol1 = document.createElement("div");
