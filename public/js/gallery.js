@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(data)
         {
             const div = document.createElement("div");
-            div.className = `col-lg-3 col-md-4 col-sm-6 col-xs-12 mb-3 ${data.file.type}`;
+            div.className = `col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3 ${data.file.type}`;
             const link = document.createElement("a");
             link.className = "card";
             link.href = `${data.file.path}`;
