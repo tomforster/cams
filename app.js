@@ -12,7 +12,10 @@ var server = http.createServer(app);
 var wss = new WebSocket.Server({server});
 
 var index = require('./routes/index');
-var cams = require('./routes/cams')(wss);
+var cams = null;
+if(!config.disableCams) {
+    cams = require('./routes/cams')(wss);
+}
 var basicAuth = require('basic-auth');
 
 // view engine setup
@@ -29,16 +32,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', index);
 
-app.use('/cams', (req, res, next) =>
-{
-    const user = basicAuth(req);
-    if (!user || user.name !== config.username || user.pass !== config.password) {
-        res.set('WWW-Authenticate', 'Basic realm=Authorization Required');
-        return res.send(401);
-    }
-    next();
-});
-app.use('/cams', cams);
+if(!config.disableCams) {
+    app.use('/cams', (req, res, next) => {
+        const user = basicAuth(req);
+        if (!user || user.name !== config.username || user.pass !== config.password) {
+            res.set('WWW-Authenticate', 'Basic realm=Authorization Required');
+            return res.send(401);
+        }
+        next();
+    });
+    app.use('/cams', cams);
+}
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
