@@ -7,8 +7,9 @@ router.get('/robots.txt',function(req,res){
     res.send("User-agent: *\nDisallow: /");
 });
 
-router.get('/shouldrooniediaf', function(req,res){
-    res.render('yes.pug');
+router.get('/should*diaf', function(req,res){
+    const name = req.path.substring(7, req.path.length - 4);
+    res.render('yes.pug', {name});
 });
 
 module.exports = router;
